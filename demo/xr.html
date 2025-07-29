@@ -959,23 +959,7 @@ const loadData = () => {
 			</li>`
 		}
 	}
-	const header = `<div class="header"><h2>Gaussian Splatting in AR/VR</h2>
-	<p>Gaussian splats web viewer with Android AR/VR support (iOS doesn't yet support WebXR)<br/>
-	Gaussian splats are created by <a href="https://poly.cam">poly.cam</a><br/>
-	AR/VR viewer use <a href="https://github.com/mkkellogg/GaussianSplats3D">GaussianSplats3D</a> and adds AR/VR support
-	<br/>
-	<a href="https://youtu.be/Jp7Hz7OxaoE"><img src="webxr/gs/assets/yt.png" class="header-img"/><span class="header-info"/>Gaussian Splatting in AR</span></a>
-	<br/>
-	<a href="mailto:filip.cir@gmail.com"><img src="webxr/gs/assets/mail.png" class="header-img"/><span class="header-info"/>Mail</a>
-	<br/>
-	<a href="https://webxr.cz/xr.html?scene=lion&xr=vr&list=legionaries,grandmother,snowcat,mutt,dragon,cinderella,paw,lion"><span class="header-info"/>VR playlist</a>
-	<br/>
-	<a href="https://webxr.cz/maps"><span class="header-info"/>Google maps 3D Tiles in VR</a> | <a href="https://youtu.be/xjHTAB0O1BI"><img src="webxr/gs/assets/yt.png" class="header-img"/><span class="header-info"/>Google maps 3D in VR</span></a>
-	<br/>	<br/>
-	<a href="https://youtu.be/E9DHxc76n80"><img src="webxr/gs/assets/yt.png" class="header-img"/><span class="header-info"/>4D Procedural Splats on Meta Quest 3</span></a>
-	<br/>
-	<a href="https://webxr.cz/lidar/index.html"><span class="header-info"/><h4>iPhone LiDAR Video</h4></span></a>
-	</p></div>`
+	const header = `<div class="header"><h2>Gaussian Splatting in AR/VR</h2>`
 	listElement.innerHTML = `${header}<div><ul>${inner}</ul></div>`
 	if (data && data.length > 0){
 		for (const scene of data) {
