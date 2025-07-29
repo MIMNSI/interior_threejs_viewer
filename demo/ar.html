@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Gaussian Splat VR - Floor Interaction</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "@mkkellogg/gaussian-splats-3d": "https://unpkg.com/@mkkellogg/gaussian-splats-3d@0.0.22/dist/gaussian-splats-3d.module.js"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as GaussianSplats3D from '@mkkellogg/gaussian-splats-3d';
+        import * as THREE from 'three';
+        import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
+
+        // 1. Global variables for interactive objects
+        let splatObject;
+        let controller1, controller2;
+        let reticle; // The ring on the floor
+        let draggedObject = null;
+        const raycaster = new THREE.Raycaster();
+
+        // 2. Configure and create the viewer with 'hit-test' enabled
+        const viewer = new GaussianSplats3D.Viewer({
+            'initialCameraPosition': [-0.98641, -0.83035, -0.28385],
+            'webXRMode': GaussianSplats3D.WebXRMode.AR,
+            'xrSessionInit': { // Request WebXR features for floor detection
+                optionalFeatures: ['local-floor', 'bounded-floor', 'hit-test']
+            }
+        });
+
+        // 3. Load your splat scene
+        // ❗ MAKE SURE THIS PATH IS CORRECT
+        let path = 'assets/data/9516_Brown/9516_Brown.ply';
+        viewer.addSplatScene(path, {
+            'rotation': new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0.01933, -0.75830, -0.65161).normalize(), new THREE.Vector3(0, 1, 0)).toArray(),
+            'scale': [0.25, 0.25, 0.25],
+            'position': [-0.98641, -0.83035, -0.28385]
+        })
+        .then((loadedSplatObject) => {
+            // 4. The model is loaded! Now set up interactive elements.
+            splatObject = loadedSplatObject;
+            console.log('✅ Splat scene loaded successfully!');
+            
+            setupInteractiveElements();
+
+            // Register our custom render loop function to be called every frame
+            viewer.addRenderCallback(onRender); 
+
+            // Start the viewer's render loop
+            viewer.start();
+        })
+        .catch((error) => {
+            console.error('Error loading splat scene:', error);
+        });
+
+        /**
+         * Sets up the controllers, floor reticle, and event listeners.
+         */
+        function setupInteractiveElements() {
+            const scene = viewer.scene;
+            
+            // Reticle (floor marker)
+            reticle = new THREE.Mesh(
+                new THREE.RingGeometry(0.1, 0.15, 32).rotateX(-Math.PI / 2),
+                new THREE.MeshBasicMaterial({ color: 0xffffff })
+            );
+            reticle.matrixAutoUpdate = false;
+            reticle.visible = false;
+            scene.add(reticle);
+
+            // --- Controller Setup ---
+            controller1 = viewer.renderer.xr.getController(0);
+            controller1.addEventListener('selectstart', onSelectStart);
+            controller1.addEventListener('selectend', onSelectEnd);
+            scene.add(controller1);
+
+            controller2 = viewer.renderer.xr.getController(1);
+            controller2.addEventListener('selectstart', onSelectStart);
+            controller2.addEventListener('selectend', onSelectEnd);
+            scene.add(controller2);
+            
+            // Add visual models to the controllers for a better experience
+            const controllerModelFactory = new XRControllerModelFactory();
+            const controllerGrip1 = viewer.renderer.xr.getControllerGrip(0);
+            controllerGrip1.add(controllerModelFactory.createControllerModel(controllerGrip1));
+            scene.add(controllerGrip1);
+
+            const controllerGrip2 = viewer.renderer.xr.getControllerGrip(1);
+            controllerGrip2.add(controllerModelFactory.createControllerModel(controllerGrip2));
+            scene.add(controllerGrip2);
+        }
+        
+        // --- Drag and Drop Functions ---
+
+        function onSelectStart(event) {
+            if (!splatObject) return;
+            const controller = event.target;
+            const intersections = getIntersections(controller);
+
+            // Check if the controller is pointing at the splat object
+            if (intersections.length > 0) {
+                draggedObject = splatObject;
+                // Attach the splat to the controller, so it moves with your hand
+                controller.attach(draggedObject);
+            }
+        }
+
+        function onSelectEnd() {
+            if (draggedObject) {
+                // When you let go, re-attach the splat to the main scene
+                viewer.scene.attach(draggedObject);
+                draggedObject = null;
+            }
+        }
+        
+        // --- Raycasting Function ---
+
+        function getIntersections(controller) {
+            if (!splatObject) return [];
+            const tempMatrix = new THREE.Matrix4();
+            tempMatrix.identity().extractRotation(controller.matrixWorld);
+            raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+            raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+            return raycaster.intersectObject(splatObject, true);
+        }
+
+        /**
+         * This function is called every frame by the viewer's render loop.
+         */
+        function onRender(frame) {
+            // We can only do hit-testing inside a WebXR frame
+            if (!frame || !splatObject) return;
+
+            // --- Handle Floor Detection (Hit-Testing) ---
+            const referenceSpace = viewer.renderer.xr.getReferenceSpace();
+            const hitTestSource = viewer.webXRManager.hitTestSource;
+
+            if (hitTestSource) {
+                const hitTestResults = frame.getHitTestResults(hitTestSource);
+                if (hitTestResults.length) {
+                    const hit = hitTestResults[0];
+                    reticle.visible = true;
+                    const pose = hit.getPose(referenceSpace);
+                    reticle.matrix.fromArray(pose.transform.matrix);
+
+                    // If we are NOT currently dragging the object, make it follow the reticle on the floor
+                    if (draggedObject === null) {
+                        splatObject.position.setFromMatrixPosition(reticle.matrix);
+                        // Optional: Reset rotation when placing on the floor
+                        splatObject.quaternion.identity(); 
+                    }
+                } else {
+                    reticle.visible = false;
+                }
+            }
+        }
+    </script>
+</body>
+</html>

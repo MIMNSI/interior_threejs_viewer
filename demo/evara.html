@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <title>Evara Heights - 4BHK</title>
+    <script type="text/javascript" src="js/util.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./lib/three.module.js",
+          "@mkkellogg/gaussian-splats-3d": "./lib/gaussian-splats-3d.module.js"
+        }
+      }
+    </script>
+    <style>
+      @font-face {
+        font-family: "Inter";
+        src: url("fonts/Inter-Regular.ttf") format("truetype");
+        font-weight: 400;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: "Inter";
+        src: url("fonts/Inter-Bold.ttf") format("truetype");
+        font-weight: 700;
+        font-style: normal;
+      }
+
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        width: 100%;
+        height: 100%;
+        font-family: "Inter", sans-serif;
+        line-height: 1.6;
+        color: #333;
+        background-color: #000000;
+      }
+
+      #renderCanvas {
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+
+      .gradient-box {
+        position: fixed;
+        width: 305px;
+        height: 100%;
+        top: 0;
+        left: 0;
+        background: linear-gradient(
+          271deg,
+          rgba(0, 0, 0, 0) 0.86%,
+          #000 99.05%
+        );
+        z-index: 999;
+      }
+      #waypointContainer {
+        position: absolute;
+        top: 50%;
+        left: 10px;
+        transform: translateY(-50%);
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        width: 305px;
+        padding: 20px;
+      }
+      #waypointControls {
+        max-height: 600px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        width: 100%;
+      }
+      #waypointControls::-webkit-scrollbar {
+        width: 8px;
+      }
+      #waypointControls::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.5);
+      }
+      #waypointControls::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+      }
+      #waypointControls::-webkit-scrollbar-thumb:hover {
+        background: #555;
+      }
+      #waypointTitle {
+        color: #ffffff;
+        font-family: "Inter", sans-serif;
+        font-weight: 700;
+        font-size: 20px;
+        text-align: left;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+      }
+      .waypoint-button {
+        background: #ffffff;
+        border: none;
+        border-radius: 10px;
+        padding: 0 10px;
+        width: 180px;
+        height: 44px;
+        font-size: 14px;
+        font-weight: 400;
+        color: #333333;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        font-family: "Inter", sans-serif;
+        text-align: center;
+      }
+      .waypoint-button:hover,
+      .waypoint-button.active {
+        background: linear-gradient(135deg, #0470c0 0%, #024d87 100%);
+        color: #ffffff;
+      }
+      #waypointText {
+        position: absolute;
+        width: 614px;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-family: "Inter", sans-serif;
+        font-weight: 400;
+        color: #ffffff;
+        font-size: 20.1px;
+        text-align: center;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #waypointText img {
+        width: 13px;
+        height: 57px;
+        margin: 0 10px;
+      }
+      #waypointText .text-content {
+        flex: 1;
+      }
+      #actionButtons {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        display: flex;
+        flex-direction: row;
+        gap: 10px;
+        z-index: 1000;
+      }
+      #resetViewButton,
+      #exitButton {
+        height: 40px;
+        width: 100px;
+        background-color: #ffffff;
+        border: none;
+        cursor: pointer;
+        font-family: "Inter", sans-serif;
+        font-weight: 700;
+        font-size: 13px;
+        color: #000000;
+        text-align: center;
+        border-radius: 10px;
+        text-transform: uppercase;
+      }
+      #resetViewButton:hover,
+      #exitButton:hover {
+        background: linear-gradient(135deg, #0470c0 0%, #024d87 100%);
+        color: #ffffff;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="renderCanvas"></div>
+    <div class="gradient-box"></div>
+    <div id="waypointContainer">
+      <div id="waypointTitle">Take a closer look</div>
+      <div id="waypointControls"></div>
+    </div>
+    <div id="waypointText">
+      <span class="text-content"></span>
+    </div>
+    <div id="actionButtons">
+      <button id="resetViewButton">Reset</button>
+      <button id="exitButton">Exit</button>
+    </div>
+    <script type="module">
+      import * as THREE from "three";
+      import * as GaussianSplats3D from "@mkkellogg/gaussian-splats-3d";
+
+      const viewer = new GaussianSplats3D.Viewer({
+        cameraUp: [
+          -0.8046912359429155, -0.5247603810607152, 0.27766626958576807,
+        ],
+        initialCameraPosition: [
+          6.053416455944447, 0.09084845376935458, 0.9059079729085311,
+        ],
+        initialCameraLookAt: [
+          0.966600073202638, 1.514978237207205, 2.790001555180933,
+        ],
+        sphericalHarmonicsDegree: 2,
+      });
+
+      const waypoints = [
+        {
+          name: "Living Room",
+          position: [
+            6.053416455944447, 0.09084845376935458, 0.9059079729085311,
+          ],
+          lookAt: [0.966600073202638, 1.514978237207205, 2.790001555180933],
+          cameraUp: [
+            -0.8046912359429155, -0.5247603810607152, 0.27766626958576807,
+          ],
+          description: "Experience a warm, welcoming space staged for comfort and connection. Perfect for relaxing evenings or hosting guests.",
+          transitionMode: "teleport",
+        },
+        {
+          name: "Dining Area",
+          position: [
+            -4.396189227220969, -0.11986378929648844, 2.641085921186818,
+          ],
+          lookAt: [0.9665803378787834, 1.514784290075082, 2.790362264944264],
+          cameraUp: [
+            -0.3562088171144052, -0.9344063756310833, 0.00006156248281356108,
+          ],
+          description: "A stylish dining setup that brings people together. Ideal for everyday meals or intimate gatherings.",
+          transitionMode: "smooth",
+        },
+        {
+          name: "Devghar",
+          position: [
+            1.9520255997778024, 0.03264767731561605, 2.2384756871364515,
+          ],
+          lookAt: [2.85574, 2.11301, 3.24927],
+          cameraUp: [0.16879, 0.95621, 0.23911],
+          description: "A peaceful corner crafted for daily prayer and reflection. Designed to bring calm into your home routine.",
+          transitionMode: "smooth",
+        },
+        {
+          name: "Kitchen",
+          position: [
+            -2.5207892957249904, -0.046034544827283946, -8.527278569012811,
+          ],
+          lookAt: [2.85574, 2.11301, 3.24927],
+          cameraUp: [0.16879, 0.95621, 0.23911],
+          description: "A modern, functional kitchen layout with premium finishes. Sampled for ease, flow, and everyday elegance.",
+          transitionMode: "smooth",
+        },
+        {
+          name: "Bedroom 1 Suite",
+          position: [
+            -168.31692847791237, 0.8176892613807166, 65.64724301554942,
+          ],
+          lookAt: [2.85574, 2.11301, 3.24927],
+          cameraUp: [0.16879, 0.95621, 0.23911],
+          description: "A cozy retreat with wardrobe and attached washroom. Staged to show comfort in every detail.",
+          transitionMode: "smooth",
+        },
+        {
+          name: "Bedroom 1 Balcony",
+          position: [
+            -169.13231729481333, -0.3297982088253709, 52.55646981305198,
+          ],
+          lookAt: [2.85574, 2.11301, 3.24927],
+          cameraUp: [0.16879, 0.95621, 0.23911],
+          description: "Wake up to light and fresh air with this private balcony. A calm space to relax and recharge.",
+          transitionMode: "smooth",
+        },
+        {
+          name: "Bedroom 2 Suite",
+          position: [
+            -175.37204161141915, 0.709486764449095, -85.84412735632206,
+          ],
+          lookAt: [-168.47369930472755, 1.6484129942349501, -89.55072726210331],
+          cameraUp: [
+            0.024853215450863816, -0.9995657774246571, 0.015829538312728444,
+          ],
+          description: "Sampled as a restful space with en-suite and storage. Designed for comfort, peace, and daily ease.",
+          transitionMode: "teleport",
+        },
+        {
+          name: "Bedroom 2 Lounge",
+          position: [
+            -166.6296748259174, 0.07393961076606773, -83.27813498607566,
+          ],
+          lookAt: [2.85574, 2.11301, 3.24927],
+          cameraUp: [0.16879, 0.95621, 0.23911],
+          description: "A cozy chill zone with window views. Perfect for reading, relaxing, or quiet time alone.",
+          transitionMode: "smooth",
+        },
+        {
+          name: "Bedroom 3 Balcony",
+          position: [318.6260825157256, 6.073910115269365, 100.92361899786661],
+          lookAt: [2.85574, 2.11301, 3.24927],
+          cameraUp: [0.16879, 0.95621, 0.23911],
+          description: "Balcony access brings in light and breeze. Your own outdoor corner for peace and pause.",
+          transitionMode: "smooth",
+        },
+        {
+          name: "Bedroom 3 Suite",
+          position: [318.9736780618608, 5.698284775117145, 112.21101375721032],
+          lookAt: [2.85574, 2.11301, 3.24927],
+          cameraUp: [0.16879, 0.95621, 0.23911],
+          description: "A sample suite with bed, wardrobe, and en-suite bath. Where function meets personal comfort.",
+          transitionMode: "smooth",
+        },
+        {
+          name: "Bedroom 4 Balcony",
+          position: [
+            526.7036642326392, 0.03900090154891096, 0.5120309527371646,
+          ],
+          lookAt: [2.85574, 2.11301, 3.24927],
+          cameraUp: [0.16879, 0.95621, 0.23911],
+          description: "Step out to your private balcony for a moment of calm. Ideal for quiet mornings or sunset views.",
+          transitionMode: "smooth",
+        },
+        {
+          name: "Bedroom 4 Suite",
+          position: [527.5839900385594, 0.12335567019339433, 9.747363190482842],
+          lookAt: [2.85574, 2.11301, 3.24927],
+          cameraUp: [0.16879, 0.95621, 0.23911],
+          description: "Spacious suite with walk-in wardrobe and attached bath. Staged for modern luxury and ease.",
+          transitionMode: "smooth",
+        },
+      ];
+
+      const waypointControls = document.getElementById("waypointControls");
+
+      function createWaypointButtons() {
+        waypoints.forEach((waypoint, index) => {
+          const button = document.createElement("button");
+          button.innerText = waypoint.name;
+          button.className = "waypoint-button";
+          button.addEventListener("click", () => {
+            document
+              .querySelectorAll(".waypoint-button")
+              .forEach((btn) => btn.classList.remove("active"));
+            button.classList.add("active");
+            moveToWaypoint(index);
+          });
+          waypointControls.appendChild(button);
+        });
+      }
+
+      function updateWaypointText(index) {
+        const waypointTextSpan = document.querySelector(
+          "#waypointText .text-content"
+        );
+        waypointTextSpan.textContent =
+          waypoints[index].description || "No description available";
+      }
+
+      function moveToWaypoint(index) {
+        const waypoint = waypoints[index];
+        const targetPosition = new THREE.Vector3().fromArray(waypoint.position);
+        const targetLookAt = new THREE.Vector3().fromArray(waypoint.lookAt);
+        const targetUp = new THREE.Vector3().fromArray(waypoint.cameraUp);
+
+        if (viewer.controls) {
+          viewer.controls.enabled = false;
+        }
+
+        if (waypoint.transitionMode === "teleport") {
+          viewer.camera.position.copy(targetPosition);
+          viewer.controls.target.copy(targetLookAt);
+          viewer.camera.up.copy(targetUp).normalize();
+          if (viewer.controls) {
+            viewer.controls.enabled = true;
+            viewer.controls.update();
+          }
+        } else {
+          const animate = () => {
+            const currentPosition = viewer.camera.position;
+            const currentLookAt = viewer.controls.target;
+            const currentUp = viewer.camera.up;
+
+            if (currentPosition.distanceTo(targetPosition) > 0.01) {
+              currentPosition.lerp(targetPosition, 0.05);
+              currentLookAt.lerp(targetLookAt, 0.05);
+              currentUp.lerp(targetUp, 0.05).normalize();
+              requestAnimationFrame(animate);
+            } else {
+              viewer.camera.position.copy(targetPosition);
+              viewer.controls.target.copy(targetLookAt);
+              viewer.camera.up.copy(targetUp).normalize();
+
+              if (viewer.controls) {
+                viewer.controls.enabled = true;
+                viewer.controls.update();
+              }
+            }
+          };
+          animate();
+        }
+        updateWaypointText(index);
+      }
+
+      function resetView() {
+        moveToWaypoint(0);
+        document
+          .querySelectorAll(".waypoint-button")
+          .forEach((btn) => btn.classList.remove("active"));
+        const firstButton = document.querySelector(".waypoint-button");
+        if (firstButton) firstButton.classList.add("active");
+      }
+
+      function exitExperience() {
+        window.location.reload();
+      }
+
+      document
+        .getElementById("resetViewButton")
+        .addEventListener("click", resetView);
+      document
+        .getElementById("exitButton")
+        .addEventListener("click", exitExperience);
+
+      let path =
+        'assets/data/evara/evara.splat';
+      viewer
+        .addSplatScene(path, {
+          streamView: true,
+        })
+        .then(() => {
+          viewer.start();
+          createWaypointButtons();
+          updateWaypointText(0);
+          const firstButton = document.querySelector(".waypoint-button");
+          if (firstButton) firstButton.classList.add("active");
+        });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <title>3D Gaussian Splat Demo - Living Room Tour</title>
+    <script type="text/javascript" src="js/util.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./lib/three.module.js",
+          "@mkkellogg/gaussian-splats-3d": "./lib/gaussian-splats-3d.module.js"
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #000000;
+        height: 100vh;
+        margin: 0px;
+      }
+      #waypoint-container {
+        z-index: 100;
+        position: absolute;
+        top: 10px;
+        left: 15px;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 10px;
+        border-radius: 10px;
+      }
+      .waypoint-button {
+        background-color: #4caf50;
+        border: none;
+        color: white;
+        padding: 10px 20px;
+        text-align: center;
+        text-decoration: none;
+        display: block;
+        font-size: 16px;
+        margin: 4px 2px;
+        cursor: pointer;
+        border-radius: 12px;
+      }
+      /* CSS for the fade overlay */
+      #fade-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: black;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease-in-out; /* Smooth transition for opacity */
+        z-index: 9999; /* Ensure it's on top of everything */
+      }
+
+      #fade-overlay.visible {
+        opacity: 1;
+        visibility: visible;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="waypoint-container"></div>
+    <div id="fade-overlay"></div>
+    <script type="module">
+      import * as THREE from "three";
+      import * as GaussianSplats3D from "@mkkellogg/gaussian-splats-3d";
+
+      const viewer = new GaussianSplats3D.Viewer({
+        cameraUp: [
+          -0.8046912359429155, -0.5247603810607152, 0.27766626958576807,
+        ],
+        initialCameraPosition: [
+          6.053416455944447, 0.09084845376935458, 0.9059079729085311,
+        ],
+        initialCameraLookAt: [
+          0.966600073202638, 1.514978237207205, 2.790001555180933,
+        ],
+        sphericalHarmonicsDegree: 2,
+      });
+
+      const waypoints = [
+        {
+          name: "Living Room",
+          position: [
+            6.053416455944447, 0.09084845376935458, 0.9059079729085311,
+          ],
+          lookAt: [0.966600073202638, 1.514978237207205, 2.790001555180933],
+          cameraUp: [
+            -0.8046912359429155, -0.5247603810607152, 0.27766626958576807,
+          ],
+          transitionMode: "teleport", // Set to teleport for direct jump
+        },
+        {
+          name: "TV Area",
+          position: [
+            -4.396189227220969, -0.11986378929648844, 2.641085921186818,
+          ],
+          lookAt: [0.9665803378787834, 1.514784290075082, 2.790362264944264],
+          cameraUp: [
+            -0.3562088171144052, -0.9344063756310833, 0.00006156248281356108,
+          ],
+          transitionMode: "smooth", // Set to teleport for direct jump
+        },
+        {
+          name: "Devghar",
+          position: [
+            1.9520255997778024, 0.03264767731561605, 2.2384756871364515,
+          ],
+          lookAt: [2.85574, 2.11301, 3.24927],
+          cameraUp: [0.16879, 0.95621, 0.23911],
+          transitionMode: "smooth", // Default to smooth animation
+        },
+        {
+          name: "Kitchen",
+          position: [
+            -2.5207892957249904, -0.046034544827283946, -8.527278569012811,
+          ],
+          lookAt: [2.85574, 2.11301, 3.24927],
+          cameraUp: [0.16879, 0.95621, 0.23911],
+          transitionMode: "smooth",
+        },
+        {
+          name: "Bedroom 1 Suite",
+          position: [
+            -168.31692847791237, 0.8176892613807166, 65.64724301554942,
+          ],
+          lookAt: [2.85574, 2.11301, 3.24927],
+          cameraUp: [0.16879, 0.95621, 0.23911],
+          transitionMode: "smooth",
+        },
+        {
+          name: "Bedroom 1 Balcony",
+          position: [
+            -169.13231729481333, -0.3297982088253709, 52.55646981305198,
+          ],
+          lookAt: [2.85574, 2.11301, 3.24927],
+          cameraUp: [0.16879, 0.95621, 0.23911],
+          transitionMode: "smooth",
+        },
+        {
+          name: "Bedroom 2 Main View",
+          position: [
+            -175.37204161141915, 0.709486764449095, -85.84412735632206,
+          ],
+          lookAt: [-168.47369930472755, 1.6484129942349501, -89.55072726210331],
+          cameraUp: [
+            0.024853215450863816, -0.9995657774246571, 0.015829538312728444,
+          ],
+          transitionMode: "teleport",
+        },
+        {
+          name: "Bedroom 2 Lounge",
+          position: [
+            -166.6296748259174, 0.07393961076606773, -83.27813498607566,
+          ],
+          lookAt: [2.85574, 2.11301, 3.24927],
+          cameraUp: [0.16879, 0.95621, 0.23911],
+          transitionMode: "smooth",
+        },
+        {
+          name: "Bedroom 3 Balcony",
+          position: [318.6260825157256, 6.073910115269365, 100.92361899786661],
+          lookAt: [2.85574, 2.11301, 3.24927],
+          cameraUp: [0.16879, 0.95621, 0.23911],
+          transitionMode: "smooth",
+        },
+        {
+          name: "Bedroom 3 Suite",
+          position: [318.9736780618608, 5.698284775117145, 112.21101375721032],
+          lookAt: [2.85574, 2.11301, 3.24927],
+          cameraUp: [0.16879, 0.95621, 0.23911],
+          transitionMode: "smooth",
+        },
+        {
+          name: "Bedroom 4 Balcony",
+          position: [
+            526.7036642326392, 0.03900090154891096, 0.5120309527371646,
+          ],
+          lookAt: [2.85574, 2.11301, 3.24927],
+          cameraUp: [0.16879, 0.95621, 0.23911],
+          transitionMode: "smooth",
+        },
+        {
+          name: "Bedroom 4 Suite",
+          position: [527.5839900385594, 0.12335567019339433, 9.747363190482842],
+          lookAt: [2.85574, 2.11301, 3.24927],
+          cameraUp: [0.16879, 0.95621, 0.23911],
+          transitionMode: "smooth",
+        },
+      ];
+
+      const waypointContainer = document.getElementById("waypoint-container");
+      const fadeOverlay = document.getElementById("fade-overlay"); // Get the overlay element
+      const FADE_DURATION = 300; // milliseconds for fade in/out
+
+      waypoints.forEach((waypoint, index) => {
+        const button = document.createElement("button");
+        button.innerText = waypoint.name;
+        button.className = "waypoint-button";
+        button.addEventListener("click", () => {
+          moveToWaypoint(index);
+        });
+        waypointContainer.appendChild(button);
+      });
+
+      function moveToWaypoint(index) {
+        const waypoint = waypoints[index];
+        const targetPosition = new THREE.Vector3().fromArray(waypoint.position);
+        const targetLookAt = new THREE.Vector3().fromArray(waypoint.lookAt);
+        const targetUp = new THREE.Vector3().fromArray(waypoint.cameraUp);
+
+        if (viewer.controls) {
+          viewer.controls.enabled = false;
+        }
+
+        // Check if the target waypoint requires teleportation
+        if (waypoint.transitionMode === "teleport") {
+          // Fade out
+          fadeOverlay.classList.add("visible");
+          setTimeout(() => {
+            // Teleport instantly after fade-out
+            viewer.camera.position.copy(targetPosition);
+            viewer.controls.target.copy(targetLookAt);
+            viewer.camera.up.copy(targetUp).normalize();
+
+            // Re-enable controls and update
+            if (viewer.controls) {
+              viewer.controls.enabled = true;
+              viewer.controls.update(); // Update controls after setting new target
+            }
+
+            // Fade in after teleport and a brief moment for initial rendering
+            setTimeout(() => {
+              fadeOverlay.classList.remove("visible");
+            }, 100); // Small delay to allow splats to render at new position
+          }, FADE_DURATION); // Wait for fade-out to complete
+        } else {
+          // Existing smooth animation logic
+          const animate = () => {
+            const currentPosition = viewer.camera.position;
+            const currentLookAt = viewer.controls.target;
+            const currentUp = viewer.camera.up;
+
+            if (currentPosition.distanceTo(targetPosition) > 0.01) {
+              currentPosition.lerp(targetPosition, 0.05);
+              currentLookAt.lerp(targetLookAt, 0.05);
+              currentUp.lerp(targetUp, 0.05).normalize();
+              requestAnimationFrame(animate);
+            } else {
+              // Ensure camera is exactly at target position and lookAt
+              viewer.camera.position.copy(targetPosition);
+              viewer.controls.target.copy(targetLookAt);
+              viewer.camera.up.copy(targetUp).normalize();
+
+              if (viewer.controls) {
+                viewer.controls.enabled = true;
+                viewer.controls.update(); // Update controls after setting new target
+              }
+            }
+          };
+          animate();
+        }
+      }
+
+      let path =
+        "https://propertyscans.s3.ap-south-1.amazonaws.com/LnT/LT_4BhK_for_viewer1.splat";
+      viewer
+        .addSplatScene(path, {
+          streamView: true,
+        })
+        .then(() => {
+          viewer.start();
+        });
+    </script>
+  </body>
+</html>
