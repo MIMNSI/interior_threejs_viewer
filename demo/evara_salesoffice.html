@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
+    <title>3D Gaussian Splat Demo - Sales Office Tour</title>
+    <script type="text/javascript" src="js/util.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./lib/three.module.js",
+          "@mkkellogg/gaussian-splats-3d": "./lib/gaussian-splats-3d.module.js"
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #000000;
+        height: 100vh;
+        margin: 0px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+      }
+      #waypoint-container {
+        z-index: 100;
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        /* Container background is now transparent */
+      }
+
+      /* Style for the title */
+      #waypoint-container h3 {
+        color: white;
+        text-transform: uppercase;
+        font-size: 14px;
+        letter-spacing: 0.08em;
+        margin: 0 0 15px 5px;
+        font-weight: 500;
+      }
+
+      .waypoint-button {
+        background-color: rgba(30, 30, 30, 0.7); /* Dark semi-transparent background */
+        border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle white border */
+        color: white;
+        padding: 12px 20px;
+        text-align: left; /* Align text to the left */
+        text-decoration: none;
+        display: block;
+        font-size: 16px;
+        margin-bottom: 8px; /* Spacing between buttons */
+        cursor: pointer;
+        border-radius: 8px; /* Rounded corners */
+        width: 220px; /* Fixed width for all buttons */
+        transition: all 0.2s ease-in-out; /* Smooth transitions for all properties */
+      }
+
+      /* On-hover effect */
+      .waypoint-button:hover {
+        background-color: rgba(60, 60, 60, 0.8);
+        border-color: rgba(255, 255, 255, 0.7);
+      }
+
+      /* Selected button style */
+      .waypoint-button.selected {
+        background-color: #0d6efd; /* Solid blue background */
+        border-color: #0d6efd; /* Matching blue border */
+      }
+
+      /* CSS for the fade overlay */
+      #fade-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: black;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease-in-out;
+        z-index: 9999;
+      }
+
+      #fade-overlay.visible {
+        opacity: 1;
+        visibility: visible;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="waypoint-container">
+      <h3>Take a Closer Look</h3>
+    </div>
+    <div id="fade-overlay"></div>
+    <script type="module">
+      import * as THREE from "three";
+      import * as GaussianSplats3D from "@mkkellogg/gaussian-splats-3d";
+
+      const viewer = new GaussianSplats3D.Viewer({
+        cameraUp: [
+          -0.5103180333899578, -0.8342932228727278, 0.20863921746796044,
+        ],
+        initialCameraPosition: [
+          6.779669472228323, -1.5394365200138838, -3.399351149010618,
+        ],
+        initialCameraLookAt: [
+          -0.014265319661942118, -0.41774610102221693, -0.3502476698417702,
+        ],
+        sphericalHarmonicsDegree: 2,
+      });
+
+      const waypoints = [
+        {
+          name: "L&T Sales Office",
+          position: [
+            6.779669472228323, -1.5394365200138838, -3.399351149010618,
+          ],
+          lookAt: [
+            -0.014265319661942118, -0.41774610102221693, -0.3502476698417702,
+          ],
+          cameraUp: [
+            -0.5103180333899578, -0.8342932228727278, 0.20863921746796044,
+          ],
+        },
+        {
+          name: "Reception Area",
+          position: [
+            4.519381826187818, -0.9226529058967794, -2.5960354395315406,
+          ],
+          lookAt: [4.9254972569228395, -0.8787751687514198, -8.418852064796544],
+          cameraUp: [
+            -0.024899005935339558, -0.9727567407020277, 0.23048722941239105,
+          ],
+        },
+        {
+          name: "Client Waiting Area",
+          position: [
+            0.8168514083349488, -1.3409408076635385, -2.4111753178133593,
+          ],
+          lookAt: [0.7303112781043969, -0.6943488904614431, -5.043855905524853],
+          cameraUp: [
+            -0.01742548059796778, -0.9985676992442272, -0.05058559727847901,
+          ],
+        },
+        {
+          name: "Consultation Lounge",
+          position: [
+            -3.910509522587823, -1.1301072138901653, -2.6488802268724774,
+          ],
+          lookAt: [
+            -3.9307238456165927, 0.023919279744159992, -7.915368189827032,
+          ],
+          cameraUp: [
+            -0.009628250190837703, -0.998527791684857, 0.05338113928369743,
+          ],
+        },
+        {
+          name: "Meeting Rooms",
+          position: [
+            1.066792810534813, -0.9331850664819015, -4.814605824650573,
+          ],
+          lookAt: [-7.11347680676072, 0.17017958391310709, -1.8148205853246815],
+          cameraUp: [
+            -0.21986756220520276, -0.9691356182270262, 0.11150967928238875,
+          ],
+        },
+        {
+          name: "Central Atrium",
+          position: [
+            -5.83809747195568, -1.5270719334523446, -5.196099880208613,
+          ],
+          lookAt: [
+            -0.8085555628051184, -0.8129744797158818, 0.28212578036887154,
+          ],
+          cameraUp: [
+            0.07046487024343817, -0.992677931305614, 0.09810824002285586,
+          ],
+        },
+        {
+          name: "Project Gallery",
+          position: [4.682579848000592, -1.20122980763673, 2.9356517355758367],
+          lookAt: [-0.08203227169520905, -0.2579346557176959, 8.82436501542611],
+          cameraUp: [
+            0.021500236709242306, -0.9997354631490752, -0.008169672181362619,
+          ],
+        },
+      ];
+
+      const waypointContainer = document.getElementById("waypoint-container");
+      const fadeOverlay = document.getElementById("fade-overlay");
+      const FADE_DURATION = 300;
+
+      // Create buttons and add them to the container
+      waypoints.forEach((waypoint, index) => {
+        const button = document.createElement("button");
+        button.innerText = waypoint.name;
+        button.className = "waypoint-button";
+        button.addEventListener("click", () => {
+          const allButtons =
+            waypointContainer.querySelectorAll(".waypoint-button");
+          allButtons.forEach((btn) => btn.classList.remove("selected"));
+          button.classList.add("selected");
+          moveToWaypoint(index);
+        });
+        waypointContainer.appendChild(button);
+      });
+
+      // Set the first button as selected by default
+      const firstButton = waypointContainer.querySelector(".waypoint-button");
+      if (firstButton) {
+        firstButton.classList.add("selected");
+      }
+
+      function moveToWaypoint(index) {
+        const waypoint = waypoints[index];
+        const targetPosition = new THREE.Vector3().fromArray(waypoint.position);
+        const targetLookAt = new THREE.Vector3().fromArray(waypoint.lookAt);
+        const targetUp = waypoint.cameraUp ? new THREE.Vector3().fromArray(waypoint.cameraUp) : new THREE.Vector3(0, -1, 0);
+
+        if (viewer.controls) {
+          viewer.controls.enabled = false;
+        }
+
+        if (waypoint.transitionMode === "teleport") {
+          fadeOverlay.classList.add("visible");
+          setTimeout(() => {
+            viewer.camera.position.copy(targetPosition);
+            viewer.controls.target.copy(targetLookAt);
+            viewer.camera.up.copy(targetUp).normalize();
+            if (viewer.controls) {
+              viewer.controls.enabled = true;
+              viewer.controls.update();
+            }
+            setTimeout(() => {
+              fadeOverlay.classList.remove("visible");
+            }, 100);
+          }, FADE_DURATION);
+        } else {
+          const animate = () => {
+            const currentPosition = viewer.camera.position;
+            const currentLookAt = viewer.controls.target;
+            const currentUp = viewer.camera.up;
+
+            if (currentPosition.distanceTo(targetPosition) > 0.01) {
+              currentPosition.lerp(targetPosition, 0.05);
+              currentLookAt.lerp(targetLookAt, 0.05);
+              currentUp.lerp(targetUp, 0.05).normalize();
+              requestAnimationFrame(animate);
+            } else {
+              viewer.camera.position.copy(targetPosition);
+              viewer.controls.target.copy(targetLookAt);
+              viewer.camera.up.copy(targetUp).normalize();
+              if (viewer.controls) {
+                viewer.controls.enabled = true;
+                viewer.controls.update();
+              }
+            }
+          };
+          animate();
+        }
+      }
+
+      let path =
+        "https://propertyscans.s3.ap-south-1.amazonaws.com/LnT/L%26T_Sales_Office.splat";
+      viewer
+        .addSplatScene(path, {
+          streamView: true,
+        })
+        .then(() => {
+          viewer.start();
+        });
+    </script>
+  </body>
+</html>
