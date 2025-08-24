@@ -251,6 +251,7 @@
       const waypointContainer = document.getElementById("waypoint-container");
       const fadeOverlay = document.getElementById("fade-overlay");
       const FADE_DURATION = 300;
+      let animationFrameId = null; 
 
       // Create waypoint buttons and add them to the container
       waypoints.forEach((waypoint, index) => {
@@ -270,6 +271,11 @@
       });
 
       function moveToWaypoint(index) {
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+
         const waypoint = waypoints[index];
         const targetPosition = new THREE.Vector3().fromArray(waypoint.position);
         const targetLookAt = new THREE.Vector3().fromArray(waypoint.lookAt);
@@ -297,11 +303,12 @@
             const currentLookAt = viewer.controls.target;
             if (currentPosition.distanceTo(targetPosition) < 0.01) {
               if (viewer.controls) viewer.controls.enabled = true;
+                animationFrameId = null;
               return;
             }
             currentPosition.lerp(targetPosition, 0.05);
             currentLookAt.lerp(targetLookAt, 0.05);
-            requestAnimationFrame(animate);
+            animationFrameId = requestAnimationFrame(animate);
           };
           animate();
         }
