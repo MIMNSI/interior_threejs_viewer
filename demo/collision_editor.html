@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Collision Mesh Editor</title>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+                "@mkkellogg/gaussian-splats-3d": "https://cdn.jsdelivr.net/npm/@mkkellogg/gaussian-splats-3d@0.4.1/build/gaussian-splats-3d.module.js"
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #000000;
+            height: 100vh;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: white;
+        }
+        #editor-ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+            background-color: rgba(20, 20, 20, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 280px;
+        }
+        #editor-ui h3 {
+            margin-top: 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding-bottom: 10px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #aaa;
+        }
+        .vector-inputs {
+            display: flex;
+            gap: 5px;
+        }
+        .vector-inputs input {
+            width: 100%;
+        }
+        input[type="number"] {
+            background-color: #333;
+            border: 1px solid #555;
+            color: white;
+            padding: 5px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        button {
+            background-color: #0d6efd;
+            border: none;
+            color: white;
+            padding: 10px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button:hover {
+            background-color: #0b5ed7;
+        }
+        #export-panel {
+            display: none;
+            margin-top: 20px;
+        }
+        #export-panel textarea {
+            width: 100%;
+            height: 200px;
+            background-color: #111;
+            border: 1px solid #555;
+            color: #ddd;
+            font-family: monospace;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="editor-ui">
+        <h3>Collision Editor</h3>
+        <button id="add-wall-btn">Add Wall</button>
+
+        <div id="selection-panel" style="display: none;">
+            <hr style="border-color: rgba(255, 255, 255, 0.2); margin: 20px 0;">
+            <h4>Selected Wall</h4>
+            <div class="control-group">
+                <label>Position</label>
+                <div class="vector-inputs">
+                    <input type="number" id="pos-x" step="0.1">
+                    <input type="number" id="pos-y" step="0.1">
+                    <input type="number" id="pos-z" step="0.1">
+                </div>
+            </div>
+            <div class="control-group">
+                <label>Rotation (Degrees)</label>
+                <div class="vector-inputs">
+                    <input type="number" id="rot-x" step="1">
+                    <input type="number" id="rot-y" step="1">
+                    <input type="number" id="rot-z" step="1">
+                </div>
+            </div>
+            <div class="control-group">
+                <label>Scale</label>
+                <div class="vector-inputs">
+                    <input type="number" id="scale-x" step="0.1">
+                    <input type="number" id="scale-y" step="0.1">
+                    <input type="number" id="scale-z" step="0.1">
+                </div>
+            </div>
+             <button id="delete-wall-btn" style="background-color: #dc3545;">Delete Selected Wall</button>
+        </div>
+        <hr style="border-color: rgba(255, 255, 255, 0.2); margin: 20px 0;">
+        <button id="export-btn">Export Meshes</button>
+        <div id="export-panel">
+            <label>Copy the code below:</label>
+            <textarea id="export-output" readonly></textarea>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as THREE from "three";
+        import * as GaussianSplats3D from "@mkkellogg/gaussian-splats-3d";
+        import { TransformControls } from "three/addons/controls/TransformControls.js";
+
+        // Basic setup for the viewer
+        const viewer = new GaussianSplats3D.Viewer({
+            cameraUp: [0.0, -1.0, 0.0],
+            initialCameraPosition: [6.04095, -0.71013, -0.44695],
+            initialCameraLookAt: [-1.82022, 2.37613, 3.96715],
+        });
+
+        // Scene loading
+        let path = "https://metashopai.s3.ap-south-1.amazonaws.com/L%26T/l%26t_evara_heights_4BhK.splat";
+        viewer.addSplatScene(path, { streamView: true })
+            .then(() => {
+                viewer.start();
+                // Defer the editor initialization to the next frame to ensure the scene is ready.
+                requestAnimationFrame(() => {
+                    initEditor();
+                });
+            });
+
+        // Editor functionality
+        let transformControls;
+        const collisionObjects = [];
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        function initEditor() {
+            const scene = viewer.scene;
+            const camera = viewer.camera;
+            const renderer = viewer.renderer;
+
+            // Material for the collision boxes
+            const wallMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ff00,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.5
+            });
+            
+            // Material for selected box
+            const selectedMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffa500,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            // Initialize TransformControls
+            transformControls = new TransformControls(camera, renderer.domElement);
+            scene.add(transformControls);
+
+            transformControls.addEventListener('dragging-changed', (event) => {
+                viewer.controls.enabled = !event.value;
+            });
+            
+            transformControls.addEventListener('objectChange', updateUI);
+
+            // UI Elements
+            const addWallBtn = document.getElementById('add-wall-btn');
+            const deleteWallBtn = document.getElementById('delete-wall-btn');
+            const exportBtn = document.getElementById('export-btn');
+            const selectionPanel = document.getElementById('selection-panel');
+
+            addWallBtn.addEventListener('click', () => {
+                const geometry = new THREE.BoxGeometry(1, 2, 0.2); // Default size
+                const wall = new THREE.Mesh(geometry, wallMaterial.clone());
+                // Place new wall in front of the camera
+                const newPos = new THREE.Vector3();
+                camera.getWorldDirection(newPos);
+                newPos.multiplyScalar(5);
+                newPos.add(camera.position);
+                wall.position.copy(newPos);
+                
+                scene.add(wall);
+                collisionObjects.push(wall);
+                selectObject(wall);
+            });
+            
+            deleteWallBtn.addEventListener('click', () => {
+                const selectedObject = transformControls.object;
+                if (selectedObject) {
+                    const index = collisionObjects.indexOf(selectedObject);
+                    if (index > -1) {
+                        collisionObjects.splice(index, 1);
+                    }
+                    scene.remove(selectedObject);
+                    transformControls.detach();
+                    selectionPanel.style.display = 'none';
+                }
+            });
+
+            exportBtn.addEventListener('click', generateExportCode);
+
+            // Handle object selection
+            window.addEventListener('click', (event) => {
+                // Ignore clicks on the UI panel
+                if (document.getElementById('editor-ui').contains(event.target)) {
+                    return;
+                }
+
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObjects(collisionObjects);
+
+                if (intersects.length > 0) {
+                    selectObject(intersects[0].object);
+                } else {
+                    deselectAll();
+                }
+            });
+            
+            function selectObject(object) {
+                deselectAll(true); // Deselect others without hiding UI
+                object.material = selectedMaterial.clone();
+                transformControls.attach(object);
+                selectionPanel.style.display = 'block';
+                updateUI();
+            }
+
+            function deselectAll(keepUI = false) {
+                collisionObjects.forEach(obj => {
+                    obj.material = wallMaterial.clone();
+                });
+                transformControls.detach();
+                if (!keepUI) {
+                    selectionPanel.style.display = 'none';
+                }
+            }
+
+            // Link UI inputs to transform controls
+            const inputs = ['pos-x', 'pos-y', 'pos-z', 'rot-x', 'rot-y', 'rot-z', 'scale-x', 'scale-y', 'scale-z'];
+            inputs.forEach(id => {
+                document.getElementById(id).addEventListener('change', () => {
+                    const obj = transformControls.object;
+                    if (!obj) return;
+                    obj.position.x = parseFloat(document.getElementById('pos-x').value);
+                    obj.position.y = parseFloat(document.getElementById('pos-y').value);
+                    obj.position.z = parseFloat(document.getElementById('pos-z').value);
+                    obj.rotation.x = THREE.MathUtils.degToRad(parseFloat(document.getElementById('rot-x').value));
+                    obj.rotation.y = THREE.MathUtils.degToRad(parseFloat(document.getElementById('rot-y').value));
+                    obj.rotation.z = THREE.MathUtils.degToRad(parseFloat(document.getElementById('rot-z').value));
+                    obj.scale.x = parseFloat(document.getElementById('scale-x').value);
+                    obj.scale.y = parseFloat(document.getElementById('scale-y').value);
+                    obj.scale.z = parseFloat(document.getElementById('scale-z').value);
+                });
+            });
+            
+            function updateUI() {
+                const obj = transformControls.object;
+                if (!obj) return;
+                document.getElementById('pos-x').value = obj.position.x.toFixed(3);
+                document.getElementById('pos-y').value = obj.position.y.toFixed(3);
+                document.getElementById('pos-z').value = obj.position.z.toFixed(3);
+                document.getElementById('rot-x').value = THREE.MathUtils.radToDeg(obj.rotation.x).toFixed(1);
+                document.getElementById('rot-y').value = THREE.MathUtils.radToDeg(obj.rotation.y).toFixed(1);
+                document.getElementById('rot-z').value = THREE.MathUtils.radToDeg(obj.rotation.z).toFixed(1);
+                document.getElementById('scale-x').value = obj.scale.x.toFixed(3);
+                document.getElementById('scale-y').value = obj.scale.y.toFixed(3);
+                document.getElementById('scale-z').value = obj.scale.z.toFixed(3);
+            }
+
+            function generateExportCode() {
+                let code = `// --- Generated Collision Meshes ---\n`;
+                code += `const wallMaterial = new THREE.MeshBasicMaterial({ visible: false });\n\n`;
+
+                collisionObjects.forEach((obj, index) => {
+                    const p = obj.position;
+                    const r = obj.rotation;
+                    const s = obj.scale;
+                    code += `// Wall ${index + 1}\n`;
+                    code += `const wall${index + 1} = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), wallMaterial);\n`;
+                    code += `wall${index + 1}.position.set(${p.x.toFixed(4)}, ${p.y.toFixed(4)}, ${p.z.toFixed(4)});\n`;
+                    code += `wall${index + 1}.rotation.set(${r.x.toFixed(4)}, ${r.y.toFixed(4)}, ${r.z.toFixed(4)});\n`;
+                    code += `wall${index + 1}.scale.set(${s.x.toFixed(4)}, ${s.y.toFixed(4)}, ${s.z.toFixed(4)});\n`;
+                    code += `collisionObjects.push(wall${index + 1});\n\n`;
+                });
+                
+                code += `viewer.scene.add(...collisionObjects);\n`;
+                code += `// --- End Generated Meshes ---`;
+
+                document.getElementById('export-panel').style.display = 'block';
+                document.getElementById('export-output').value = code;
+            }
+        }
+    </script>
+</body>
+</html>
